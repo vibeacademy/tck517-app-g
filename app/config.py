@@ -6,7 +6,7 @@ or Cloud Run Secret Manager mounts.
 """
 
 from functools import lru_cache
-from typing import Self
+from typing import ClassVar, Self
 
 from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     # the auth code raises explicitly if it's empty at call time. See
     # app/auth/tokens.py.
     magic_link_secret: SecretStr = SecretStr("")
+
+    # Session-cookie + TTL constants. ClassVar so pydantic-settings does
+    # NOT treat them as env-overridable — the cookie name is part of the
+    # auth contract and must not differ between environments.
+    SESSION_COOKIE_NAME: ClassVar[str] = "session_id"
+    SESSION_TTL_DAYS: ClassVar[int] = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",
