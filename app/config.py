@@ -8,7 +8,7 @@ or Cloud Run Secret Manager mounts.
 from functools import lru_cache
 from typing import Self
 
-from pydantic import field_validator, model_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./dev.db"
     app_url: str = "http://localhost:8080"
     environment: str = "development"
+    # Secret used to sign magic-link tokens (HMAC via itsdangerous). Has an
+    # empty default so Settings() construction stays cheap in dev/test;
+    # the auth code raises explicitly if it's empty at call time. See
+    # app/auth/tokens.py.
+    magic_link_secret: SecretStr = SecretStr("")
 
     model_config = SettingsConfigDict(
         env_file=".env",
