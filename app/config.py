@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # app/auth/tokens.py.
     magic_link_secret: SecretStr = SecretStr("")
 
+    # Resend email delivery for magic links. Same empty-default pattern
+    # as magic_link_secret — production fails loud at first send if
+    # unset; tests use a fake EmailSender via app.dependency_overrides.
+    resend_api_key: SecretStr = SecretStr("")
+    resend_from_address: str = "no-reply@example.com"
+
     # Session-cookie + TTL constants. ClassVar so pydantic-settings does
     # NOT treat them as env-overridable — the cookie name is part of the
     # auth contract and must not differ between environments.
