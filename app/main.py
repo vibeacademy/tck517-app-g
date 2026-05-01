@@ -11,9 +11,9 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.api import health, todos
+from app.api import health
 
-app = FastAPI(title="Agile Flow GCP")
+app = FastAPI(title="D&D Character Builder")
 
 # Mount static files (CSS, images, favicon).
 # Pico.css is loaded via CDN in base.html so this directory is light.
@@ -22,4 +22,3 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Routes
 app.include_router(health.router)
-app.include_router(todos.router)
