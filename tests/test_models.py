@@ -71,17 +71,13 @@ def test_character_data_column_uses_json_on_sqlite_and_jsonb_on_postgres() -> No
     # Default (SQLite, generic) is JSON
     assert isinstance(base_type, JSON)
     # The variant for the postgresql dialect is JSONB
-    pg_variant = base_type.dialect_impl(
-        __import__("sqlalchemy").dialects.postgresql.dialect()
-    )
+    pg_variant = base_type.dialect_impl(__import__("sqlalchemy").dialects.postgresql.dialect())
     assert isinstance(pg_variant, JSONB)
 
 
 def test_user_email_column_uses_string_on_sqlite_and_citext_on_postgres() -> None:
     column = User.__table__.c.email
-    pg_variant = column.type.dialect_impl(
-        __import__("sqlalchemy").dialects.postgresql.dialect()
-    )
+    pg_variant = column.type.dialect_impl(__import__("sqlalchemy").dialects.postgresql.dialect())
     assert isinstance(pg_variant, CITEXT)
 
 
