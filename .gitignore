@@ -56,6 +56,10 @@ logs/
 
 # Project-specific ignores (add below this line)
 
+# Whitelist .env.example — the framework section's `.env.*` rule excludes
+# it, but we need it tracked as the documented env-var contract.
+!.env.example
+
 # Workshop roster — input + generated output. Contains participant emails;
 # never commit. Use scripts/roster.example.csv as the format reference.
 roster.csv
