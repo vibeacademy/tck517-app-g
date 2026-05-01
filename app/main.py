@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.api import health
+from app.auth import routes as auth_routes
 
 app = FastAPI(title="D&D Character Builder")
 
@@ -22,3 +23,4 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Routes
 app.include_router(health.router)
+app.include_router(auth_routes.router)
