@@ -279,9 +279,7 @@ def test_post_auth_logout_deletes_session_row_and_clears_cookie(
 
     # Confirm one session row exists
     user = db_session.exec(select(User).where(User.email == "logout@example.com")).one()
-    rows_before = db_session.exec(
-        select(UserSession).where(UserSession.user_id == user.id)
-    ).all()
+    rows_before = db_session.exec(select(UserSession).where(UserSession.user_id == user.id)).all()
     assert len(rows_before) == 1
 
     # Logout — TestClient already has the cookie from the verify response
@@ -295,9 +293,7 @@ def test_post_auth_logout_deletes_session_row_and_clears_cookie(
     )
 
     # Session row gone
-    rows_after = db_session.exec(
-        select(UserSession).where(UserSession.id == session_id)
-    ).all()
+    rows_after = db_session.exec(select(UserSession).where(UserSession.id == session_id)).all()
     assert rows_after == []
 
 

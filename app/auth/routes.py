@@ -162,9 +162,7 @@ def logout(request: Request, db: DBSessionDep) -> Response:
             from uuid import UUID
 
             session_id = UUID(raw_cookie)
-            row = db.exec(
-                select(UserSession).where(col(UserSession.id) == session_id)
-            ).first()
+            row = db.exec(select(UserSession).where(col(UserSession.id) == session_id)).first()
             if row is not None:
                 db.delete(row)
                 db.commit()
