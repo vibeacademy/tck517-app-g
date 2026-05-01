@@ -30,15 +30,34 @@ You are a Senior Full-Stack Engineer. Your primary responsibility is to autonomo
 
 ## Project Context
 
-<!--
-TEMPLATE: Fill in project-specific context here when using this template.
-
-Example fields to populate:
-- **Platform(s)**: [Web, Mobile, Desktop, etc.]
-- **Tech Stack**: [Languages, frameworks, and tools used]
-- **Architecture**: [Monolith, microservices, serverless, etc.]
-- **Key Quality Standards**: [Performance, accessibility, security requirements]
--->
+- **Product**: A D&D character builder. Users describe a character in
+  natural language; the app generates stats, personality, and lore.
+  Per-user "projects" are workspaces, one per character.
+  See `docs/PRODUCT-REQUIREMENTS.md`.
+- **Platform**: Web application only (server-rendered HTML; no SPA).
+- **Tech Stack**:
+  - Python 3.12, FastAPI + Uvicorn
+  - Jinja2 templates + HTMX 2.x (no JS build step), Pico.css via CDN
+  - SQLModel + Alembic
+  - Anthropic Python SDK (Claude Opus / Haiku) for generation
+  - Resend Python SDK for magic-link email
+  - `uv` as the package manager
+- **Architecture**: Modular monolith on Google Cloud Run with Neon
+  Postgres (per-PR DB branches). Single deployable, organized by
+  feature module (`auth/`, `projects/`, `characters/`). See
+  `docs/TECHNICAL-ARCHITECTURE.md`.
+- **Key Quality Standards**:
+  - Authorization: every query filtered by `current_user.id` —
+    cross-tenant leaks are P0
+  - LLM call isolation: keep Anthropic calls inside
+    `app/characters/generator.py`; never sprinkle them across modules
+  - HTMX fragment routes return fragments only — assert
+    `"<html" not in response.text` in tests
+  - No real Anthropic / Resend calls in unit tests; inject fakes via
+    `app.dependency_overrides`
+  - All secrets in Google Secret Manager; never commit env files
+  - Use `window.location.origin` (client) or request headers (server)
+    for self-referential URLs — never hardcode app URLs
 
 ## Tools and Capabilities
 
@@ -133,28 +152,55 @@ ask the user to run `gh auth login` (solo) or
 
 ### 3. Implementation Standards
 
-You must strictly adhere to the project's architecture and coding standards defined in `CLAUDE.md`.
+You must strictly adhere to the project's architecture and coding standards defined in `CLAUDE.md` and `docs/TECHNICAL-ARCHITECTURE.md`.
 
-<!--
-TEMPLATE: Fill in project-specific implementation standards here.
-
-Example sections:
 **Technology Stack:**
-- [Language and version]
-- [Framework]
-- [Build tooling]
-- [Testing framework]
+- Python 3.12 (managed with `uv`)
+- FastAPI + Uvicorn for the web layer
+- Jinja2 + HTMX 2.x for the UI (server-rendered; no JS build)
+- SQLModel + Alembic for the database layer
+- pytest + httpx + `fastapi.testclient.TestClient` for tests
+- ruff (lint + format) and mypy (types)
+
+**Module Layout** (extend, do not flatten):
+```
+app/
+  auth/         projects/      characters/    api/
+  models/       db.py          config.py      main.py
+templates/      _fragments/    # HTMX partials
+```
 
 **Code Quality:**
-- [Type safety requirements]
-- [Code style guidelines]
-- [Documentation standards]
+- ruff lint rules: `E,F,I,W,B,UP` (line length 100)
+- `mypy app/` clean — `check_untyped_defs = true`
+- `snake_case` modules/functions; `PascalCase` SQLModel/Pydantic classes
+- Route paths kebab-case (`/auth/verify`, `/projects/{id}`)
+- Module docstring on each new feature module; one-line docstring on
+  each route handler describing what it returns (full page vs fragment)
+- Default to no comments; only add when the *why* is non-obvious
+
+**Database / Migrations:**
+- Schema changes via Alembic: `uv run alembic revision --autogenerate -m "msg"`
+- Per-PR Neon branch runs `alembic upgrade head` automatically — verify
+  CI green before requesting review
+- `Character.data` is JSONB by design; do not migrate it to columns
+  without an ADR
+
+**LLM Discipline:**
+- All Anthropic calls live in `app/characters/generator.py`; do not
+  call the SDK from routes or other modules
+- Cap output tokens per generation — runaway prompts blow the budget
+- Never call the real Anthropic / Resend APIs from unit tests; inject
+  fakes via `app.dependency_overrides`
 
 **Testing Requirements:**
-- [Test types required]
-- [Coverage thresholds]
-- [Pre-commit checks]
--->
+- Unit + HTTP tests with in-memory SQLite (`StaticPool` fixture)
+- Override `get_session` via `app.dependency_overrides`
+- HTMX fragment endpoints: assert HTML substrings AND
+  `assert "<html" not in response.text`
+- Coverage target: 80%+ on `app/` (excluding `app/main.py`)
+- Pre-push hook runs lint + tests automatically. **`--no-verify` is
+  forbidden.** Fix the failing check; do not bypass it.
 
 ### 4. Pull Request Creation
 

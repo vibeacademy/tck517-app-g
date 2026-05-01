@@ -158,24 +158,25 @@ Every agent output MUST follow these patterns. Full spec: `docs/AGENT-OUTPUT-STA
 
 ## Project-Specific Configuration
 
-<!--
-TEMPLATE: Fill in project-specific details below when using this template.
--->
-
 ### Project Information
 
 - **License**: BSL 1.1 (converts to Apache 2.0 after 3 years per release)
-- **Project Name**: [Your project name]
-- **Repository**: [GitHub repo URL]
-- **Project Board**: [GitHub project board URL]
+- **Project Name**: D&D Character Builder (working name)
+- **Domain**: A D&D character builder — vibes-driven, prompt-based
+- **Repository**: https://github.com/vibeacademy/tck517-app-g
+- **Project Board**: https://github.com/users/tck517/projects/11
 - **Tech Stack**: FastAPI + Jinja2 + HTMX on Python 3.12
 - **Database layer**: SQLModel + Alembic
+- **LLM**: Anthropic Claude (Opus + Haiku) via the Anthropic Python SDK
+- **Email**: Resend (magic-link delivery)
+- **Auth**: Email magic link (no passwords)
+- **Observability**: Google Cloud Logging + Error Reporting
 - **Platform**: Google Cloud Platform (Cloud Run)
 - **Database**: Neon (serverless Postgres with per-PR branching)
 - **Container Registry**: Artifact Registry
 - **Secrets**: Google Secret Manager
 - **Package manager**: uv
-- **Organization**: [GitHub org name]
+- **Organization**: vibeacademy (repo) / tck517 (project board)
 
 ### Build & Test Commands
 
