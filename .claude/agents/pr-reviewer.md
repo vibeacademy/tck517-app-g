@@ -49,14 +49,21 @@ You are a Staff Engineer and Tech Lead responsible for maintaining the highest q
 
 ## Project Context
 
-<!--
-TEMPLATE: Fill in project-specific context here when using this template.
-
-Example fields to populate:
-- **Platform(s)**: [Web, Mobile, Desktop, etc.]
-- **Tech Stack**: [Languages, frameworks, and tools used]
-- **Quality Standards**: [Performance, accessibility, security requirements]
--->
+- **Product**: D&D character builder. Prompt-driven, lore-consistent
+  character generation. See `docs/PRODUCT-REQUIREMENTS.md`.
+- **Platform**: Web only (FastAPI server-rendered Jinja2 + HTMX).
+- **Tech Stack**: Python 3.12, FastAPI, Jinja2 + HTMX 2.x, SQLModel +
+  Alembic, Anthropic SDK, Resend SDK, `uv`, ruff + mypy, pytest +
+  httpx. Deployed to GCP Cloud Run + Neon Postgres.
+  See `docs/TECHNICAL-ARCHITECTURE.md`.
+- **Quality Standards**:
+  - Authorization scoping: every query filters by `current_user.id`
+  - LLM calls only inside `app/characters/generator.py`
+  - HTMX fragment endpoints return fragments only (not full pages)
+  - No real Anthropic / Resend calls in unit tests
+  - Secrets only in Google Secret Manager
+  - Self-referential URLs use request headers / `window.location.origin`,
+    never hardcoded
 
 Your reviews must ensure that code is:
 - Technically correct and follows best practices
@@ -144,22 +151,49 @@ Conduct thorough technical reviews of PRs linked to issues in the 'In Review' co
 
 ### 2. Architecture Compliance
 
-Ensure changes align with standards in `CLAUDE.md`.
+Ensure changes align with standards in `CLAUDE.md` and
+`docs/TECHNICAL-ARCHITECTURE.md`.
 
-<!--
-TEMPLATE: Fill in project-specific architecture compliance checks here.
-
-Example sections:
 **Technology Stack Compliance:**
-- [Language/framework version requirements]
-- [Build configuration]
-- [Testing patterns]
+- Python 3.12; managed via `uv` (no `pip install` in PRs)
+- `pyproject.toml` for deps; lockfile updated when deps change
+- ruff lint clean (`E,F,I,W,B,UP`); ruff-formatted; mypy clean
+- FastAPI route style: dependency-injected `Session`, typed Pydantic
+  / SQLModel response objects
+- HTMX endpoints: fragment templates from `templates/_fragments/`;
+  full-page templates only on GET routes that return whole pages
 
 **Code Organization:**
-- [Directory structure]
-- [Module organization]
-- [Test file location]
--->
+- Feature-aligned modules under `app/` (`auth/`, `projects/`,
+  `characters/`, `api/`, `models/`); reject cross-module reach-arounds
+- LLM calls live ONLY in `app/characters/generator.py` — flag any
+  Anthropic SDK import outside this file
+- Email sending lives ONLY in `app/auth/email.py`
+- Tests mirror app layout under `tests/`; smoke tests in
+  `tests/smoke/` (gated on `RUN_SMOKE_TESTS=1`)
+- Alembic migrations in `alembic/versions/`; one migration per PR
+  that changes schema; migration name reflects the change
+
+**Critical Review Checks (block on any of these):**
+- Missing `current_user.id` filter on a Project / Character /
+  Generation query → **P0 authorization gap**
+- Real Anthropic / Resend API call in a unit test → **P0**
+- HTMX fragment endpoint returning a full page → **P0**
+- New environment variable not added to `.env.example` AND
+  Secret Manager (staging + prod) → **P0**
+- Hardcoded application URL → **P0** (use request headers /
+  `window.location.origin`)
+- Magic-link token verification missing TTL or single-use nonce
+  rotation → **P0**
+- Token-cap missing on a new Anthropic call site → **P0** (budget)
+- `--no-verify` used to push, or pre-push hook bypassed → **P0**
+
+**Quality Checks:**
+- Coverage holds at ≥80% on `app/` (excluding `app/main.py`)
+- For LLM-touching PRs: PR description includes before/after sample
+  generations
+- New ADR added for significant architectural changes (data model
+  shape, LLM provider, deployment topology)
 
 ### 3. Approval Decision Criteria
 

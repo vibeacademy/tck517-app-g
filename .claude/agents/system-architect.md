@@ -433,28 +433,86 @@ Use the **ATAM (Architecture Tradeoff Analysis Method)**:
 
 ## Project-Specific Domain Analysis
 
-<!--
-TEMPLATE: Fill in project-specific domain analysis here when using this template.
+**Source documents (read these before answering architecture questions):**
+- `docs/PRODUCT-REQUIREMENTS.md`
+- `docs/PRODUCT-ROADMAP.md`
+- `docs/TECHNICAL-ARCHITECTURE.md` (canonical — all ADRs live here)
+- `.claude/PROJECT.md` (platform + key service choices)
 
-Example structure:
-### Bounded Contexts
+### Architecture Style
 
-#### 1. [Context Name]
-**Aggregates:**
-- `Entity` (root) → `ChildEntity1`, `ChildEntity2`
+**Modular monolith** on Google Cloud Run. One FastAPI deployable
+organized by feature module under `app/`. Stateless compute,
+scale-to-zero. Postgres (Neon) is the only system of record.
 
-**Value Objects:**
-- `ValueObject1`, `ValueObject2`
+This style is chosen for budget + solo-team posture. Defend it
+against premature splits into microservices, queues, or caches —
+push back unless a measured constraint demands them.
 
-**Domain Events:**
-- `Event1`, `Event2`
+### Modules (feature-aligned, not layer-aligned)
 
-**Ubiquitous Language:**
-- Term1, Term2, Term3
+| Module | Responsibility |
+|--------|----------------|
+| `app/auth` | Magic-link issuance, verification, sessions |
+| `app/projects` | Per-character workspace CRUD |
+| `app/characters` | Prompt assembly, Anthropic streaming, validator, character schema |
+| `app/api` | Cloud Run health probes |
+| `app/models` | SQLModel entity definitions |
 
-### Context Mapping
-[Diagram showing how contexts relate to each other]
--->
+LLM calls are isolated to `app/characters/generator.py`. Email
+sending is isolated to `app/auth/email.py`. Cross-module imports
+should flow through these seams.
+
+### Domain Entities
+
+| Entity | Purpose | Notes |
+|--------|---------|-------|
+| `User` | Account, owns projects | email + magic-link nonce + last_login_at |
+| `Project` | Workspace for one character | one-to-one with `Character` in v1 |
+| `Character` | Generated sheet (stats + lore + personality) | `data` is JSONB — schema iterates fast |
+| `Generation` | Audit + cost log of an LLM call | prompt, status, model, token counts |
+| `Session` | HTTP-only cookie session | uuid stored as cookie value |
+
+### Ubiquitous Language
+
+| Term | Definition |
+|------|------------|
+| Character | A D&D player-character: stats, class, race, backstory, personality, lore |
+| Project | A workspace for one character — its prompt history and current sheet |
+| Generation | A single LLM call that produces or refines a character |
+| Vibes-first | Generation flow driven by natural-language description, not form fields |
+| Magic link | One-time signed URL emailed to a user; consumes a per-user nonce |
+
+### Architecture Patterns in Use
+
+- **Modular monolith** — one deployable, feature-aligned modules
+- **Server-rendered HTML + HTMX** — no SPA, no JS build step
+- **Streaming over SSE** — token-level streaming from Anthropic to
+  the browser via HTMX `sse-swap`
+- **Dependency injection via FastAPI `Depends`** — `get_session`,
+  `current_user`, and the LLM generator are all swappable in tests
+- **Per-PR ephemeral databases** — Neon branches give each PR an
+  isolated Postgres
+- **JSONB for evolving schema** — `Character.data` stays JSONB until
+  the schema stabilizes
+
+### Key Architectural Decisions (recorded as ADRs)
+
+ADR-001 modular monolith · ADR-002 Anthropic Claude · ADR-003
+magic-link auth · ADR-004 JSONB for character data · ADR-005 Cloud
+Logging (no Sentry) · ADR-006 HTMX SSE for streaming. Full text:
+`docs/TECHNICAL-ARCHITECTURE.md`.
+
+### Architectural Guardrails (push back when violated)
+
+1. Authorization scoping by `current_user.id` is non-negotiable.
+2. The Anthropic SDK is imported only in `app/characters/generator.py`.
+3. Resend SDK is imported only in `app/auth/email.py`.
+4. New persistence belongs in Postgres unless a measured need argues
+   for something else (no Redis, no in-memory caches in v1).
+5. New external services need an ADR.
+6. Cloud Run remains the only compute target; no Kubernetes, no
+   long-running workers in v1.
 
 ## Communication Style
 

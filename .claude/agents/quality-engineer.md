@@ -151,19 +151,54 @@ You are a master of:
 
 ## Project-Specific Context
 
-<!--
-TEMPLATE: Fill in project-specific testing context here when using this template.
-
-Example fields to populate:
-- **Architecture**: [Description of the application architecture]
-- **Testing Stack**: [Testing frameworks and tools used]
-- **Key Test Areas**: [Core areas requiring testing]
-- **Critical Quality Concerns**: [Project-specific quality priorities]
--->
+- **Product**: A D&D character builder. Core value is generating
+  believable, lore-consistent characters from a natural-language prompt.
+  Quality of *generated content* is as load-bearing as code correctness.
+- **Architecture**: Modular monolith. FastAPI + Jinja2 + HTMX,
+  SQLModel + Alembic, deployed to Google Cloud Run with Neon Postgres
+  (per-PR DB branches). See `docs/TECHNICAL-ARCHITECTURE.md`.
+- **Testing Stack**:
+  - `pytest` + `pytest-asyncio` for unit + integration tests
+  - `httpx` + `fastapi.testclient.TestClient` for HTTP tests
+  - In-memory SQLite via `StaticPool` fixture; override
+    `get_session` with `app.dependency_overrides`
+  - `pytest --cov=app --cov-report=term-missing` for coverage
+  - Real Anthropic / Resend calls are **forbidden in unit tests** —
+    inject fakes via `dependency_overrides`. Real-API smoke tests live
+    in `tests/smoke/` and are gated on `RUN_SMOKE_TESTS=1`.
+- **Key Test Areas**:
+  - Magic-link auth: token signing/verification, TTL expiry,
+    single-use nonce rotation, session cookie attributes
+    (HTTP-only, Secure, SameSite=Lax)
+  - Project CRUD with `current_user` scoping (a user must never see
+    another user's projects/characters)
+  - Character generator: parse / validate the structured Anthropic
+    output into the `Character` Pydantic schema; `validator.py`
+    rules-sanity checks on stat blocks
+  - HTMX endpoints: assert HTML substrings AND assert
+    `"<html" not in response.text` for fragment routes (catches
+    full-page leaks)
+  - Alembic migrations run cleanly forward on each PR's Neon branch
+- **Critical Quality Concerns**:
+  - **Authorization scoping**: every query must filter by
+    `current_user.id`. A missing filter is a P0.
+  - **LLM cost**: validate token caps in tests; alert on prompts that
+    exceed budget per generation.
+  - **Generation quality**: include before/after sample generations in
+    PRs that touch prompts. Qualitative review is part of the test
+    plan, not an afterthought.
+  - **Rules accuracy**: generated stat blocks must pass
+    `validator.py`. Failures should mark the character as "draft —
+    verify before play" rather than silently render.
+  - **Email deliverability**: magic-link auth depends on Resend; treat
+    delivery failures as a critical user-facing path.
+  - **Secrets**: no API keys in repo, env files, or test fixtures.
+    Tests must run without `ANTHROPIC_API_KEY` / `RESEND_API_KEY`.
 
 ## Quality Standards
 
-- **Test Coverage**: Aim for 80%+ overall code coverage per CLAUDE.md
+- **Test Coverage**: Aim for 80%+ on `app/` (excluding `app/main.py`
+  glue) per `docs/TECHNICAL-ARCHITECTURE.md`
 - **BDD Clarity**: Every scenario must be understandable by the development team
 - **Reproducibility**: All defects must include exact reproduction steps
 - **Traceability**: Link every test back to a requirement or specification
