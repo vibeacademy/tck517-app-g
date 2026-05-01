@@ -1,23 +1,26 @@
 """initial domain models
 
-Revision ID: 0001
-Revises:
+Revision ID: 002
+Revises: 001
 Create Date: 2026-05-01
 
-Initial schema: users, projects, characters, generations, sessions.
-On Postgres, also enables the `citext` extension so `users.email` is
-case-insensitive at the column level. SQLite tests use plain VARCHAR.
+Drops the starter `todo` table from migration 001 and creates the five
+domain entities the MVP needs: users, projects, characters, generations,
+sessions. On Postgres, also enables the `citext` extension so
+`users.email` is case-insensitive at the column level. SQLite tests use
+plain VARCHAR.
 """
 
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+import sqlmodel
 from sqlalchemy.dialects.postgresql import CITEXT, JSONB
 
 from alembic import op
 
-revision: str = "0001"
-down_revision: str | None = None
+revision: str = "002"
+down_revision: str | None = "001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -27,6 +30,10 @@ def _is_postgres() -> bool:
 
 
 def upgrade() -> None:
+    # Drop the starter `todo` table created by 001 — the workshop
+    # example is gone, the domain is taking its place.
+    op.drop_table("todo")
+
     if _is_postgres():
         op.execute("CREATE EXTENSION IF NOT EXISTS citext")
 
@@ -123,3 +130,14 @@ def downgrade() -> None:
     op.drop_table("users")
     # We deliberately do NOT drop the citext extension — other databases
     # in the same Postgres cluster may rely on it.
+
+    # Restore the starter `todo` table so downgrading past this revision
+    # leaves the database in the exact state migration 001 produced.
+    op.create_table(
+        "todo",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("title", sqlmodel.sql.sqltypes.AutoString(length=200), nullable=False),
+        sa.Column("done", sa.Boolean(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
